@@ -5,10 +5,13 @@
     <!--USB HOST权限-->
     <uses-feature android:name="android.hardware.usb.host"/>
 
-    <!--获取读文件权限-->
-    <uses-feature android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <!--获取写文件权限-->
-    <uses-feature android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <!--&lt;!&ndash;获取读文件权限&ndash;&gt;-->
+    <!--<uses-feature android:name="android.permission.READ_EXTERNAL_STORAGE"/>-->
+    <!--&lt;!&ndash;获取写文件权限&ndash;&gt;-->
+    <!--<uses-feature android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>-->
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application
         android:allowBackup="true"

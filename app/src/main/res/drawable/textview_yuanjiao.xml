@@ -7,8 +7,8 @@
             <!--设置渐变色 angle=0 从左到右渲染，angle=90从上到下渲染，angle=180 从右到左渲染，-->
             <gradient
                 android:angle="90"
-                android:startColor="#dddddd"
-                android:endColor="#dddddd" />
+                android:startColor="#FFFFFF"
+                android:endColor="#FFFFFF" />
             <!--设置角的弧度-->
             <corners android:radius="10dp" />
 

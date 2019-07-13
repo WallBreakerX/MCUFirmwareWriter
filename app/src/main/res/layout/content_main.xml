@@ -8,6 +8,38 @@
     tools:context=".MainActivity"
     tools:showIn="@layout/activity_main">
 
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="160dp"
+        android:layout_height="46dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="384dp"
+        android:background="@drawable/write_button_yuanjiao"
+
+        android:text="GO"
+        android:textColor="#FFFFFF"
+        android:textSize="16dp"
+        android:textAllCaps = "false"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="160dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginBottom="384dp"
+
+        android:background="@drawable/write_button_yuanjiao"
+        android:text="FLASH SIZE"
+        android:textColor="#FFFFFF"
+        android:textSize="16dp"
+        android:textAllCaps = "false"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <TextView
         android:id="@+id/textView2"
         android:layout_width="387dp"
@@ -16,9 +48,10 @@
         android:layout_marginTop="15dp"
         android:layout_marginEnd="32dp"
         android:gravity="center"
-        android:text="FIRMWARE WRITING"
+        android:text="FIRMWARE WRITER"
         android:textColor="#000000"
         android:textSize="38dp"
+        android:textAllCaps = "false"
 
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -29,16 +62,19 @@
         android:layout_width="365dp"
         android:layout_height="164dp"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="128dp"
         android:layout_marginEnd="32dp"
-        android:background="@drawable/file_button_yuanjiao"
+        android:layout_marginBottom="456dp"
 
-        android:text="选择文件"
+        android:background="@drawable/file_button_yuanjiao"
+        android:text="Choose file"
         android:textColor="#FFFFFF"
         android:textSize="20dp"
+        android:textAllCaps = "false"
+
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/contentTextViewId"
@@ -50,32 +86,19 @@
         android:layout_marginBottom="48dp"
         android:background="@drawable/textview_yuanjiao"
 
+        android:elevation="4dp"
         android:maxLines="99999"
         android:scrollbars="vertical"
         android:singleLine="false"
-        android:text="  无内鬼\n"
-        android:textSize="13sp"
-        android:textColor="#000000"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="#5c5c5c"
+        android:textAllCaps = "false"
+
         android:scrollbarStyle="insideOverlay"
         android:scrollbarFadeDuration="2000"
 
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="365dp"
-        android:layout_height="49dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/write_button_yuanjiao"
-
-        android:text="开始烧录"
-        android:textColor="#FFFFFF"
-        android:textSize="15dp"
-        app:layout_constraintBottom_toTopOf="@+id/contentTextViewId"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 

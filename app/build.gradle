@@ -33,7 +33,7 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
     implementation files('libs/CH34xUARTDriver.jar')
-    implementation 'me.rosuh:AndroidFilePicker:0.4.6'
+    implementation 'com.leon:lfilepickerlibrary:1.8.0'
 }
 allprojects {
     repositories {

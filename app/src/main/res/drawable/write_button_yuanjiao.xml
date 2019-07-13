@@ -7,10 +7,10 @@
             <!--设置渐变色 angle=0 从左到右渲染，angle=90从上到下渲染，angle=180 从右到左渲染，-->
             <gradient
                 android:angle="90"
-                android:startColor="#FF5301"
-                android:endColor="#FF9500" />
+                android:startColor="#ed0009"
+                android:endColor="#ff4d54" />
             <!--设置角的弧度-->
-            <corners android:radius="30dp" />
+            <corners android:radius="20dp" />
 
         </shape>
     </item>
@@ -18,9 +18,9 @@
     <item  android:state_pressed="true">
         <shape>
             <!--点击之后的颜色-->
-            <solid android:color="#9e5c00"/>
+            <solid android:color="#bc0007"/>
             <!--设置角的弧度-->
-            <corners android:radius="30dp"/>
+            <corners android:radius="20dp"/>
         </shape>
     </item>
 </selector>
