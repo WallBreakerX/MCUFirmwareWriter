@@ -36,33 +36,34 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.Thread.sleep;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String ACTION_USB_PERMISSION = "cn.wch.wchusbdriver.USB_PERMISSION";
     private CH34xUARTDriver MyCH340;
     private UsbSerialDevice Serial;
-
     private Hex2Bin MyHexfile = new Hex2Bin();
+    private Button ButtonFile, ButtonWrite, ButtonFlash;
+    private TextView Info_text_view;
+    private String Hexfilename = null;
+    private String commandstr = "";
+
     private byte[] MyBindate;
     private byte[][] Firmware_Bin;
     private byte[] Firmware_check_list;
     private int RAMWRITE_SIZE = 512;
-    private String Hexfilename = null;
     private int BANDRATE = 115200;
-    private String commandstr = "";
+    private int FlashSize = 16 - 1;
+    private int Finalflag = 0;
 
-    private Button ButtonFile, ButtonWrite, ButtonFlash;
-    private TextView Info_text_view;
-
-    private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private int REQUESTCODE_FROM_ACTIVITY = 1000;
     private static String[] PERMISSIONS_STORAGE = {
             "android.permission.READ_EXTERNAL_STORAGE",
             "android.permission.WRITE_EXTERNAL_STORAGE" };
-
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static final String ACTION_USB_PERMISSION = "cn.wch.wchusbdriver.USB_PERMISSION";
 
 
     @Override
@@ -70,23 +71,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextView Title = findViewById(R.id.textView2);              //实例化 标题字体
+        TextView Title = findViewById(R.id.textView2);                                              //实例化 标题字体
         AssetManager mgr = getAssets();
         Typeface tf = Typeface.createFromAsset(mgr, "CooperHewitt-Bold.ttf");
         Title.setTypeface(tf);
 
-        ButtonWrite = findViewById(R.id.button2);            //实例化 烧录按钮
+        ButtonWrite = findViewById(R.id.button2);                                                   //实例化 烧录按钮
         ButtonWrite.setTypeface(tf);
 
-        ButtonFlash = findViewById(R.id.button3);            //实例化 Flash选择按钮
+        ButtonFlash = findViewById(R.id.button3);                                                   //实例化 Flash选择按钮
         ButtonFlash.setTypeface(tf);
 
-        ButtonFile = findViewById(R.id.button);              //实例化 文件选择按钮
+        ButtonFile = findViewById(R.id.button);                                                     //实例化 文件选择按钮
         ButtonFile.setTypeface(tf);
 
-
-
-        Info_text_view = findViewById(R.id.contentTextViewId);      //实例化 信息输出窗口
+        Info_text_view = findViewById(R.id.contentTextViewId);                                      //实例化 信息输出窗口
         tf = Typeface.createFromAsset(mgr, "apple_SC_BlackBold.ttf");
         Info_text_view.setTypeface(tf);
         Info_text_view.setMovementMethod(ScrollingMovementMethod.getInstance());
@@ -100,14 +99,12 @@ public class MainActivity extends AppCompatActivity {
                     .withMutilyMode(false)//多选禁用
                     .withChooseMode(true)//选文件模式
                     .withTitle("Choose file")
-//                    .withBackgroundColor("white")
                     .withIconStyle(Constant.BACKICON_STYLEONE)
                     .start();
         });
 
         //烧录按钮事件
         ButtonWrite.setOnClickListener(v -> {
-            ShowInfo("NMSL");
             if (Hexfilename == null || !Hexfilename.contains(".hex"))
                 Toast.makeText(MainActivity.this, "请选择.hex文件", Toast.LENGTH_SHORT).show();
             else {
@@ -116,15 +113,17 @@ public class MainActivity extends AppCompatActivity {
                 Thread HextoBin = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        MyBindate = MyHexfile.transform(Hexfilename);   //转换hex 到 bin byte数组
-                        BintoWriteBin(MyBindate);                       //分割byte[]
-                        ShowInfo(String.valueOf(Firmware_Bin.length));
-//                        if (!initDriver()){                             //初始化CH340设备
-//                            RecoverButton();
-//                            return;
-//                        }
-//                        Into_ISPMod();
-
+                        MyBindate = MyHexfile.transform(Hexfilename);                               //转换hex 到 bin byte数组
+                        BintoWriteBin(MyBindate);                                                   //分割byte[]
+                        if (!initDriver()){                                                         //初始化CH340设备
+                            RecoverButton();
+                            return;
+                        }
+                        Into_ISPMod();
+                        if (!SendFirstData()){
+                            RecoverButton();
+                            return;
+                        }
                     }
                 });
                 HextoBin.start();
@@ -135,12 +134,85 @@ public class MainActivity extends AppCompatActivity {
         ButtonFlash.setOnClickListener(v -> {
             showListDialog();
         });
-
         verifyStoragePermissions(this);
 
-
+        //////////////////////APP与MCU 数据发送与接收线程/////////////////////////////////////////////
+        Thread CoreThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    if (Finalflag == 1) {
+                        byte[] by = new byte[64];
+                        String s = "";
+                        if (MyCH340.ReadData(by, 64) > 0) {
+                            s = new String(by);
+                            if (commandstr.contains("?") && s.contains("Synchronized\r\nOK\r\n")) {
+                                s = WriteData("12000\r\n");
+                                if (s.contains("12000\r\nOK\r\n")) {
+                                    s = WriteData("A 0\r\n");
+                                    if (s.contains("A 0\r\n0\r\n")) {
+                                        s = WriteData("U 23130\r\n");
+                                        if (s.contains("0")) {
+                                            s = WriteData(String.format("P 0 %d\r\n", FlashSize));
+                                            if (s.contains("0")) {
+                                                s = WriteData(String.format("E 0 %d\r\n", FlashSize));
+                                                if (s.contains("0")) {
+                                                    // 成功 继续 无需在此添加代码
+                                                } else {
+                                                    OutCore("Receive failed");
+                                                    continue;
+                                                }
+                                            } else {
+                                                OutCore("Receive failed");
+                                                continue;
+                                            }
+                                        } else {
+                                            OutCore("Receive failed");
+                                            continue;
+                                        }
+                                    } else {
+                                        OutCore("Receive failed");
+                                        continue;
+                                    }
+                                } else {
+                                    OutCore("Receive failed");
+                                    continue;
+                                }
+                                s = WriteData("U 23130\r\n");
+                                if (s.contains("0\r\n")) {
+                                    if (!MainWriteCore())
+                                        continue;
+                                } else {
+                                    OutCore("Receive failed");
+                                    continue;
+                                }
+                            } else if (s.contains("Synchronized\r\nOK\r\n")) {
+                                ShowInfo(s);
+                            } else if (s.contains("Synchronized\r\n")) {
+                                String string = "Synchronized\r\n";
+                                byte[] bytt = string.getBytes();
+                                if (MyCH340.WriteData(bytt, bytt.length) != bytt.length) {
+                                    ShowInfo("Send byte to port failed");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        CoreThread.start();
     }
 
+    private boolean SendFirstData(){
+        commandstr = "? \r\n";
+        if (MyCH340.WriteData(commandstr.getBytes(), commandstr.getBytes().length) != commandstr.getBytes().length){
+            ShowInfo("Send data failed");
+            commandstr = "";
+            return false;
+        }
+        Finalflag = 1;
+        return true;
+    }
     private boolean MainWriteCore(){
         int firmwarecount = 0;
         int Address = 0;
@@ -148,21 +220,21 @@ public class MainActivity extends AppCompatActivity {
         /////////////////////此处开始写入固件/////////////////////////////////
         while (firmwarecount < Firmware_Bin.length) {
             /////////////////////准备扇区////////////////////////////////////////
-            recv = WriteData("P 0 15\r\n");
+            recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
             if (recv.contains("0\r\n")) {
                 recv = WriteData("W 268436224 512\r\n");
                 /////////////////////写 512 字节到 RAM////////////////////////////////////////
                 if (recv.contains("0\r\n")) {
                     if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
-                        ShowInfo("写数据到RAM失败");
+                        OutCore("Write data to RAM failed");
                         return false;
                     }
                 } else {
-                    ShowInfo("接收数据错误");
+                    OutCore("Receive data failed");
                     return false;
                 }
             } else {
-                ShowInfo("接收数据错误");
+                OutCore("Receive data failed");
                 return false;
             }
             firmwarecount += 1;
@@ -171,17 +243,17 @@ public class MainActivity extends AppCompatActivity {
             if (recv.contains("0\r\n")) {
                 /////////////////////再写 512 字节到 RAM////////////////////////////////////////
                 if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
-                    ShowInfo("写数据到RAM失败");
+                    OutCore("Write data to RAM failed");
                     return false;
                 }
             } else {
-                ShowInfo("接收数据错误");
+                OutCore("Receive data failed");
                 return false;
             }
 
             firmwarecount += 1;
-//                                    /////////////////////准备扇区////////////////////////////////////////
-            recv = WriteData("P 0 15\r\n");
+            /////////////////////准备扇区////////////////////////////////////////
+            recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
             if (recv.contains("0\r\n")) {
                 /////////////////////从 RAM 复制1024字节到 Flash////////////////////////////////////////
                 recv = WriteData(String.format("C %d 268436224 1024\r\n", Address));
@@ -189,32 +261,38 @@ public class MainActivity extends AppCompatActivity {
                     Address += 1024;
                 }
             } else {
-                ShowInfo("接收数据错误");
+                OutCore("Receive data failed");
                 return false;
             }
             /////////////////开始校验固件////////////////////////////////
-            if (firmwarecount == Firmware_Bin.length) {
+            if (firmwarecount >= Firmware_Bin.length) {
                 int Read_address = 0;
                 for (int i = Read_address; i < Firmware_Bin.length; i++) {
                     Firmware_check_list = ReadFlash(String.format("R %d %d\r\n", Read_address, RAMWRITE_SIZE), RAMWRITE_SIZE);
                     if (new String(Firmware_check_list).equals("ERROR")) {
+                        OutCore("Read flash failed");
                         return false;
                     }
                     for (int j = 0; j < RAMWRITE_SIZE; j++) {
                         if (Firmware_Bin[i][j] != Firmware_check_list[j + 3]) {
-                            ShowInfo("校验固件失败");
+                            OutCore("Check firmware failed");
                             return false;
                         }
                     }
                     Read_address += 512;
                 }
-                Out_ISPMod();
-                commandstr = "0";
             }
             ///////////////////////////////////////////////////////////
         }
-        commandstr = "0";
+        OutCore("Writing succeed!");
         return true;
+    }
+
+    private void OutCore(String text){
+        ShowInfo(text);
+        Out_ISPMod();
+        RecoverButton();
+        commandstr = "0";
     }
     private void RecoverButton(){
         ButtonWrite.setText("GO");
@@ -311,6 +389,22 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {//根据这里which值，即可以指定是点击哪一个Item；
                 ButtonFlash.setText(list_String[which]);
+                if (which == 0){
+                    FlashSize = 8 - 1;
+                }
+                else if (which == 1){
+                    FlashSize = 16 - 1;
+                }
+                else if (which == 0){
+                    FlashSize = 24 -1;
+                }
+                else if (which == 0){
+                    FlashSize = 32 -1;
+                }
+                else if (which == 0){
+                    FlashSize = 64 -1;
+                }
+
             }
         });
 
@@ -326,108 +420,48 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     ///////////////////////////////Init serial port and USB/////////////////////////////////////////
     private boolean initDriver() {
+        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
+        if (deviceList.size() == 0){
+            ShowInfo("No Device Connected");
+            return false;
+        }
         MyCH340 = (new CH34xUARTDriver(
                 (UsbManager) getSystemService(Context.USB_SERVICE), this,
                 ACTION_USB_PERMISSION));
         if (!MyCH340.UsbFeatureSupported()) {
-            Toast.makeText(this, "Your Phone does't support OTG", Toast.LENGTH_SHORT).show();
+            ShowInfo("Your Phone does't support OTG!");
             return false;
         }
         if (MyCH340.ResumeUsbPermission() == -2) {
-            Toast.makeText(this, "No Permission", Toast.LENGTH_SHORT).show();
+            ShowInfo("No Permission!");
             return false;
         }
         if ((MyCH340.EnumerateDevice()) == null) {
-            Toast.makeText(this, "No CH340 Device", Toast.LENGTH_SHORT).show();
+            ShowInfo("No CH340 Device!");
             return false;
         }
-        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
-        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
 
+        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
         UsbDevice device = deviceIterator.next();
         UsbDeviceConnection fortestusbConnection = manager.openDevice(device);
-
         Serial = UsbSerialDevice.createUsbSerialDevice(device, fortestusbConnection);
 
         MyCH340.OpenDevice(device);
-        if (MyCH340.UartInit() == false) {
-            Toast.makeText(this, "Init Serial failed", Toast.LENGTH_SHORT).show();
+        if (!MyCH340.UartInit()) {
+            ShowInfo("Init Serial failed!");
             return false;
         }
 
         boolean TF = MyCH340.SetConfig(BANDRATE, (byte) 8, (byte) 0, (byte) 0, (byte) 0);
-        if (TF == false) {
-            Toast.makeText(this, "Set bandrate failed", Toast.LENGTH_SHORT).show();
+        if (!TF) {
+            ShowInfo("Set bandrate failed!");
             return false;
         }
 
-        //////////////////////APP与MCU 数据发送与接收线程/////////////////////////////////////////////
-        Thread myThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    byte[] by = new byte[64];
-                    String s = "";
-                    if (MyCH340.ReadData(by, 64) > 0) {
-                        s = new String(by);
-                        if (commandstr.contains("?") && s.contains("Synchronized\r\nOK\r\n")) {
-                            s = WriteData("12000\r\n");
-                            if (s.contains("12000\r\nOK\r\n")) {
-                                s = WriteData("A 0\r\n");
-                                if (s.contains("A 0\r\n0\r\n")) {
-                                    s = WriteData("U 23130\r\n");
-                                    if (s.contains("0")) {
-                                        s = WriteData("P 0 15\r\n");
-                                        if (s.contains("0")) {
-                                            s = WriteData("E 0 15\r\n");
-                                            if (s.contains("0")) {
-                                                // 成功 继续 无需在此添加代码
-                                            } else {
-                                                commandstr = "0";
-                                                continue;
-                                            }
-                                        } else {
-                                            commandstr = "0";
-                                            continue;
-                                        }
-                                    } else {
-                                        commandstr = "0";
-                                        continue;
-                                    }
-                                } else {
-                                    commandstr = "0";
-                                    continue;
-                                }
-                            } else {
-                                commandstr = "0";
-                                continue;
-                            }
-                            s = WriteData("U 23130\r\n");
-                            if (s.contains("0\r\n")) {
-                                MainWriteCore();
-                            } else {
-                                ShowInfo("ERROR:" + s + "\n(line 358)");
-                                commandstr = "0";
-                                continue;
-                            }
-                        } else if (s.contains("Synchronized\r\nOK\r\n")) {
-                            ShowInfo(s);
-                        } else if (s.contains("Synchronized\r\n")) {
-                            String string = "Synchronized\r\n";
-                            byte[] bytt = string.getBytes();
-                            if (MyCH340.WriteData(bytt, bytt.length) != bytt.length) {
-                                ShowInfo("Send byte to port failed");
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        myThread.start();
+
 
         return true;
     }
