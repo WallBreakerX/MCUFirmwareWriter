@@ -39,7 +39,7 @@
   
   
   
-### 联系方式 WeChat 
+### 联系方式
 
     WeChat: xmh849873336
     
@@ -49,8 +49,8 @@
     
 ### 感谢以下开源库
 
-https://github.com/felHR85/UsbSerial
+- https://github.com/felHR85/UsbSerial
 
-https://github.com/leonHua/LFilePicker
+- https://github.com/leonHua/LFilePicker
 
-https://blog.csdn.net/zf_c_cqupt/article/details/52676716 CSDN
+- https://blog.csdn.net/zf_c_cqupt/article/details/52676716 CSDN
