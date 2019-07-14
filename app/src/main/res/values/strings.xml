@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">MyFirmwareWriting</string>
+    <string name="app_name">FirmwareWriter</string>
     <string name="action_settings">Settings</string>
 </resources>
