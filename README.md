@@ -18,9 +18,9 @@
   
   - 将CH340的USB端转接至手机USB口
   
-    TTL端的TX，RX连接至单片机对应RX，TX
+    TTL端的**TX 连接至 PIO0_0， RX 连接至 PIO0_4**
   
-    RTS 至 单片机-RTS，DTS 至 单片机-DTS
+    **RTS 连接至 RESET，DTS 连接至 PIO0_12**
     
     (大部分CH340没有引出RTS和DTS针脚，但留有孔位，需要自行焊接)
     
