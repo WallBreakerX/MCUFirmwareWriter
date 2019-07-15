@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
             if (Hexfilename == null || !Hexfilename.contains(".hex"))
                 Toast.makeText(MainActivity.this, "请选择.hex文件", Toast.LENGTH_SHORT).show();
             else {
-                ButtonWrite.setText("烧录中...");
+                ButtonWrite.setText("Writing...");
                 ButtonWrite.setClickable(false);
                 Thread HextoBin = new Thread(() -> {
                     MyBindate = MyHexfile.transform(Hexfilename);                               //转换hex 到 bin byte数组
