@@ -1,6 +1,7 @@
 package com.example.myfirmwarewriting;
 import cn.wch.ch34xuartdriver.CH34xUARTDriver;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -15,30 +16,16 @@ import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-
 import android.text.method.ScrollingMovementMethod;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.felhr.usbserial.UsbSerialDevice;
-import com.felhr.usbserial.UsbSerialInterface;
 import com.leon.lfilepickerlibrary.LFilePicker;
 import com.leon.lfilepickerlibrary.utils.Constant;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-
-import static java.lang.Thread.sleep;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -91,17 +78,15 @@ public class MainActivity extends AppCompatActivity {
         Info_text_view.setMovementMethod(ScrollingMovementMethod.getInstance());
 
         //文件选择按钮事件
-        ButtonFile.setOnClickListener(v -> {
-            new LFilePicker()
-                    .withActivity(MainActivity.this)
-                    .withRequestCode(REQUESTCODE_FROM_ACTIVITY)
-                    .withStartPath("/storage/emulated/0/")
-                    .withMutilyMode(false)//多选禁用
-                    .withChooseMode(true)//选文件模式
-                    .withTitle("Choose file")
-                    .withIconStyle(Constant.BACKICON_STYLEONE)
-                    .start();
-        });
+        ButtonFile.setOnClickListener(v -> new LFilePicker()
+                .withActivity(MainActivity.this)
+                .withRequestCode(REQUESTCODE_FROM_ACTIVITY)
+                .withStartPath("/storage/emulated/0/")
+                .withMutilyMode(false)//多选禁用
+                .withChooseMode(true)//选文件模式
+                .withTitle("Choose file")
+                .withIconStyle(Constant.BACKICON_STYLEONE)
+                .start());
 
         //烧录按钮事件
         ButtonWrite.setOnClickListener(v -> {
@@ -110,20 +95,17 @@ public class MainActivity extends AppCompatActivity {
             else {
                 ButtonWrite.setText("烧录中...");
                 ButtonWrite.setClickable(false);
-                Thread HextoBin = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        MyBindate = MyHexfile.transform(Hexfilename);                               //转换hex 到 bin byte数组
-                        BintoWriteBin(MyBindate);                                                   //分割byte[]
-                        if (!initDriver()){                                                         //初始化CH340设备
-                            RecoverButton();
-                            return;
-                        }
-                        Into_ISPMod();
-                        if (!SendFirstData()){
-                            RecoverButton();
-                            return;
-                        }
+                Thread HextoBin = new Thread(() -> {
+                    MyBindate = MyHexfile.transform(Hexfilename);                               //转换hex 到 bin byte数组
+                    BintoWriteBin(MyBindate);                                                   //分割byte[]
+                    if (!initDriver()){                                                         //初始化CH340设备
+                        RecoverButton();
+                        return;
+                    }
+                    Into_ISPMod();
+                    ShowInfo("Into ISP mod");
+                    if (!SendFirstData()){
+                        RecoverButton();
                     }
                 });
                 HextoBin.start();
@@ -137,63 +119,54 @@ public class MainActivity extends AppCompatActivity {
         verifyStoragePermissions(this);
 
         //////////////////////APP与MCU 数据发送与接收线程/////////////////////////////////////////////
-        Thread CoreThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    if (Finalflag == 1) {
-                        byte[] by = new byte[64];
-                        String s = "";
-                        if (MyCH340.ReadData(by, 64) > 0) {
-                            s = new String(by);
-                            if (commandstr.contains("?") && s.contains("Synchronized\r\nOK\r\n")) {
-                                s = WriteData("12000\r\n");
-                                if (s.contains("12000\r\nOK\r\n")) {
-                                    s = WriteData("A 0\r\n");
-                                    if (s.contains("A 0\r\n0\r\n")) {
-                                        s = WriteData("U 23130\r\n");
-                                        if (s.contains("0")) {
-                                            s = WriteData(String.format("P 0 %d\r\n", FlashSize));
-                                            if (s.contains("0")) {
-                                                s = WriteData(String.format("E 0 %d\r\n", FlashSize));
-                                                if (s.contains("0")) {
-                                                    // 成功 继续 无需在此添加代码
-                                                } else {
-                                                    OutCore("Receive failed");
-                                                    continue;
-                                                }
-                                            } else {
-                                                OutCore("Receive failed");
-                                                continue;
-                                            }
-                                        } else {
-                                            OutCore("Receive failed");
-                                            continue;
-                                        }
-                                    } else {
-                                        OutCore("Receive failed");
-                                        continue;
-                                    }
-                                } else {
-                                    OutCore("Receive failed");
-                                    continue;
-                                }
-                                s = WriteData("U 23130\r\n");
-                                if (s.contains("0\r\n")) {
-                                    if (!MainWriteCore())
-                                        continue;
-                                } else {
-                                    OutCore("Receive failed");
-                                    continue;
-                                }
-                            } else if (s.contains("Synchronized\r\nOK\r\n")) {
-                                ShowInfo(s);
-                            } else if (s.contains("Synchronized\r\n")) {
-                                String string = "Synchronized\r\n";
-                                byte[] bytt = string.getBytes();
-                                if (MyCH340.WriteData(bytt, bytt.length) != bytt.length) {
-                                    ShowInfo("Send byte to port failed");
-                                }
+         Thread CoreThread = new Thread(() -> {
+            while (true) {
+                if (Finalflag == 1) {
+                    byte[] by = new byte[64];
+                    String Recv;
+                    if (MyCH340.ReadData(by, 64) > 0) {
+                        Recv = new String(by);
+                        ShowInfo("Receive: " + Recv);
+                        if (commandstr.contains("?") && Recv.contains("Synchronized\r\nOK\r\n")) {
+                            Recv = WriteData("12000\r\n");
+                            if (!Recv.contains("12000\r\nOK\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            Recv = WriteData("A 0\r\n");
+                            if (!Recv.contains("A 0\r\n0\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            Recv = WriteData("U 23130\r\n");
+                            if (!Recv.contains("0\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            Recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
+                            if (Recv.contains("0\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            Recv = WriteData(String.format("E 0 %d\r\n", FlashSize));
+                            if (!Recv.contains("0\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            Recv = WriteData("U 23130\r\n");
+                            if (!Recv.contains("0\r\n")) {
+                                OutCore("Receive failed");
+                                continue;
+                            }
+                            if (!MainWriteCore()) {
+                                ShowInfo("Write firmware failed");
+                            }
+                        }
+                        else if (Recv.contains("Synchronized\r\n")) {
+                            String string = "Synchronized\r\n";
+                            byte[] bytt = string.getBytes();
+                            if (MyCH340.WriteData(bytt, bytt.length) != bytt.length) {
+                                ShowInfo("Send byte to port failed");
                             }
                         }
                     }
@@ -205,26 +178,27 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean SendFirstData(){
         commandstr = "? \r\n";
+        Finalflag = 1;
         if (MyCH340.WriteData(commandstr.getBytes(), commandstr.getBytes().length) != commandstr.getBytes().length){
             ShowInfo("Send data failed");
             commandstr = "";
             return false;
         }
-        Finalflag = 1;
         return true;
     }
+
     private boolean MainWriteCore(){
         int firmwarecount = 0;
         int Address = 0;
-        String recv;
+        String Recv;
         /////////////////////此处开始写入固件/////////////////////////////////
         while (firmwarecount < Firmware_Bin.length) {
             /////////////////////准备扇区////////////////////////////////////////
-            recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
-            if (recv.contains("0\r\n")) {
-                recv = WriteData("W 268436224 512\r\n");
+            Recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
+            if (Recv.contains("0\r\n")) {
+                Recv = WriteData("W 268436224 512\r\n");
                 /////////////////////写 512 字节到 RAM////////////////////////////////////////
-                if (recv.contains("0\r\n")) {
+                if (Recv.contains("0\r\n")) {
                     if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
                         OutCore("Write data to RAM failed");
                         return false;
@@ -239,8 +213,8 @@ public class MainActivity extends AppCompatActivity {
             }
             firmwarecount += 1;
 
-            recv = WriteData("W 268436736 512\r\n");
-            if (recv.contains("0\r\n")) {
+            Recv = WriteData("W 268436736 512\r\n");
+            if (Recv.contains("0\r\n")) {
                 /////////////////////再写 512 字节到 RAM////////////////////////////////////////
                 if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
                     OutCore("Write data to RAM failed");
@@ -253,11 +227,11 @@ public class MainActivity extends AppCompatActivity {
 
             firmwarecount += 1;
             /////////////////////准备扇区////////////////////////////////////////
-            recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
-            if (recv.contains("0\r\n")) {
+            Recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
+            if (Recv.contains("0\r\n")) {
                 /////////////////////从 RAM 复制1024字节到 Flash////////////////////////////////////////
-                recv = WriteData(String.format("C %d 268436224 1024\r\n", Address));
-                if (recv.contains("0")) {
+                Recv = WriteData(String.format("C %d 268436224 1024\r\n", Address));
+                if (Recv.contains("0")) {
                     Address += 1024;
                 }
             } else {
@@ -395,13 +369,13 @@ public class MainActivity extends AppCompatActivity {
                 else if (which == 1){
                     FlashSize = 16 - 1;
                 }
-                else if (which == 0){
+                else if (which == 2){
                     FlashSize = 24 -1;
                 }
-                else if (which == 0){
+                else if (which == 3){
                     FlashSize = 32 -1;
                 }
-                else if (which == 0){
+                else if (which == 4){
                     FlashSize = 64 -1;
                 }
 
@@ -477,7 +451,7 @@ public class MainActivity extends AppCompatActivity {
         tmpbyte = new byte[32];
         int count = 0;
         try {
-            sleep(20);
+            Thread.sleep(20);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -503,18 +477,18 @@ public class MainActivity extends AppCompatActivity {
         byte[] tmmpp = new byte[32];
         int count = 0;
         int position = 0;
-        int recv = 0;
+        int Recv = 0;
         int circle = 0;
         int circle_limit = ((read_size) / 32 == 0) ? (read_size) / 32 : ((read_size) / 32) + 1;
         while (circle < circle_limit) {
-            while ((!((recv = MyCH340.ReadData(tmmpp, 32)) > 0))) {
+            while ((!((Recv = MyCH340.ReadData(tmmpp, 32)) > 0))) {
                 count++;
                 if (count > 4000000) {
                     ShowInfo("接收超时\n(line 166)");
                     return "ERROR".getBytes();
                 }
             }
-            for (int i = 0; i < recv; i++) {
+            for (int i = 0; i < Recv; i++) {
                 tmpbyte[position] = tmmpp[i];
                 position += 1;
             }
