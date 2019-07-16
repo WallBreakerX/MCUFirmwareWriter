@@ -96,6 +96,7 @@ public class MainActivity extends AppCompatActivity {
                 ButtonWrite.setText("Writing...");
                 ButtonWrite.setClickable(false);
                 Thread HextoBin = new Thread(() -> {
+                    ShowInfo("Convert hex to bin...");
                     MyBindate = MyHexfile.transform(Hexfilename);                               //转换hex 到 bin byte数组
                     BintoWriteBin(MyBindate);                                                   //分割byte[]
                     if (!initDriver()){                                                         //初始化CH340设备
@@ -106,7 +107,9 @@ public class MainActivity extends AppCompatActivity {
                     ShowInfo("Into ISP mod");
                     if (!SendFirstData()){
                         RecoverButton();
+                        return;
                     }
+                    ShowInfo("Writing firmware...");
                 });
                 HextoBin.start();
             }
@@ -126,40 +129,39 @@ public class MainActivity extends AppCompatActivity {
                     String Recv;
                     if (MyCH340.ReadData(by, 64) > 0) {
                         Recv = new String(by);
-                        ShowInfo("Receive: " + Recv);
                         if (commandstr.contains("?") && Recv.contains("Synchronized\r\nOK\r\n")) {
                             Recv = WriteData("12000\r\n");
                             if (!Recv.contains("12000\r\nOK\r\n")) {
-                                OutCore("Receive failed");
+                                OutCore("\n Receive failed 0x01");
                                 continue;
                             }
                             Recv = WriteData("A 0\r\n");
                             if (!Recv.contains("A 0\r\n0\r\n")) {
-                                OutCore("Receive failed");
+                                OutCore("\n Receive failed 0x02");
                                 continue;
                             }
                             Recv = WriteData("U 23130\r\n");
                             if (!Recv.contains("0\r\n")) {
-                                OutCore("Receive failed");
+                                OutCore("\n Receive failed 0x03");
                                 continue;
                             }
                             Recv = WriteData(String.format("P 0 %d\r\n", FlashSize));
-                            if (Recv.contains("0\r\n")) {
-                                OutCore("Receive failed");
+                            if (!Recv.contains("0\r\n")) {
+                                OutCore("\n Receive failed 0x04");
                                 continue;
                             }
                             Recv = WriteData(String.format("E 0 %d\r\n", FlashSize));
                             if (!Recv.contains("0\r\n")) {
-                                OutCore("Receive failed");
+                                OutCore("\n Receive failed 0x05");
                                 continue;
                             }
                             Recv = WriteData("U 23130\r\n");
                             if (!Recv.contains("0\r\n")) {
-                                OutCore("Receive failed");
+                                OutCore("\n Receive failed 0x06");
                                 continue;
                             }
                             if (!MainWriteCore()) {
-                                ShowInfo("Write firmware failed");
+                                ShowInfo("\n Write firmware failed");
                             }
                         }
                         else if (Recv.contains("Synchronized\r\n")) {
@@ -180,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
         commandstr = "? \r\n";
         Finalflag = 1;
         if (MyCH340.WriteData(commandstr.getBytes(), commandstr.getBytes().length) != commandstr.getBytes().length){
-            ShowInfo("Send data failed");
+            ShowInfo("\n Send data failed");
             commandstr = "";
             return false;
         }
@@ -200,15 +202,15 @@ public class MainActivity extends AppCompatActivity {
                 /////////////////////写 512 字节到 RAM////////////////////////////////////////
                 if (Recv.contains("0\r\n")) {
                     if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
-                        OutCore("Write data to RAM failed");
+                        OutCore("\n Write data to RAM failed");
                         return false;
                     }
                 } else {
-                    OutCore("Receive data failed");
+                    OutCore("\n Receive data failed");
                     return false;
                 }
             } else {
-                OutCore("Receive data failed");
+                OutCore("\n Receive data failed");
                 return false;
             }
             firmwarecount += 1;
@@ -217,11 +219,11 @@ public class MainActivity extends AppCompatActivity {
             if (Recv.contains("0\r\n")) {
                 /////////////////////再写 512 字节到 RAM////////////////////////////////////////
                 if (MyCH340.WriteData(Firmware_Bin[firmwarecount], Firmware_Bin[firmwarecount].length) != Firmware_Bin[firmwarecount].length) {
-                    OutCore("Write data to RAM failed");
+                    OutCore("\n Write data to RAM failed");
                     return false;
                 }
             } else {
-                OutCore("Receive data failed");
+                OutCore("\n Receive data failed");
                 return false;
             }
 
@@ -235,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
                     Address += 1024;
                 }
             } else {
-                OutCore("Receive data failed");
+                OutCore("\n Receive data failed");
                 return false;
             }
             /////////////////开始校验固件////////////////////////////////
@@ -244,12 +246,12 @@ public class MainActivity extends AppCompatActivity {
                 for (int i = Read_address; i < Firmware_Bin.length; i++) {
                     Firmware_check_list = ReadFlash(String.format("R %d %d\r\n", Read_address, RAMWRITE_SIZE), RAMWRITE_SIZE);
                     if (new String(Firmware_check_list).equals("ERROR")) {
-                        OutCore("Read flash failed");
+                        OutCore("\n Read flash failed");
                         return false;
                     }
                     for (int j = 0; j < RAMWRITE_SIZE; j++) {
                         if (Firmware_Bin[i][j] != Firmware_check_list[j + 3]) {
-                            OutCore("Check firmware failed");
+                            OutCore("\n Check firmware failed");
                             return false;
                         }
                     }
@@ -258,7 +260,7 @@ public class MainActivity extends AppCompatActivity {
             }
             ///////////////////////////////////////////////////////////
         }
-        OutCore("Writing succeed!");
+        OutCore("\n Write firmware succeed!!");
         return true;
     }
 
@@ -396,6 +398,7 @@ public class MainActivity extends AppCompatActivity {
 
     ///////////////////////////////Init serial port and USB/////////////////////////////////////////
     private boolean initDriver() {
+        ShowInfo("Init CH340...");
         UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
         HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
         if (deviceList.size() == 0){
@@ -445,7 +448,7 @@ public class MainActivity extends AppCompatActivity {
         byte[] tmpbyte;
         tmpbyte = str.getBytes();
         if (MyCH340.WriteData(tmpbyte, tmpbyte.length) != tmpbyte.length) {
-            ShowInfo("发送命令失败\n(line 128)");
+            ShowInfo("Send command failed\n(line 128)");
             return "ERROR";
         }
         tmpbyte = new byte[32];
@@ -458,7 +461,7 @@ public class MainActivity extends AppCompatActivity {
         while ((!(MyCH340.ReadData(tmpbyte, 32) > 0))) {
             count++;
             if (count > 4000000) {
-                ShowInfo("接收超时\n(line 141)");
+                ShowInfo("Recv timeout\n(line 141)");
                 return "ERROR";
             }
         }
@@ -470,7 +473,7 @@ public class MainActivity extends AppCompatActivity {
     private byte[] ReadFlash(String command, int read_size) {
         byte[] tmpbyte = command.getBytes();
         if (MyCH340.WriteData(tmpbyte, tmpbyte.length) != tmpbyte.length) {
-            ShowInfo("发送命令失败\n(line 152)");
+            ShowInfo("Send command failed\n(line 152)");
             return "ERROR".getBytes();
         }
         tmpbyte = new byte[read_size + 3];
@@ -484,7 +487,7 @@ public class MainActivity extends AppCompatActivity {
             while ((!((Recv = MyCH340.ReadData(tmmpp, 32)) > 0))) {
                 count++;
                 if (count > 4000000) {
-                    ShowInfo("接收超时\n(line 166)");
+                    ShowInfo("Recv timeout\n(line 166)");
                     return "ERROR".getBytes();
                 }
             }
@@ -502,25 +505,25 @@ public class MainActivity extends AppCompatActivity {
     private void Into_ISPMod() {
         Serial.setRTS(true);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setDTR(true);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setDTR(false);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setRTS(false);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -530,25 +533,25 @@ public class MainActivity extends AppCompatActivity {
     private void Out_ISPMod() {
         Serial.setRTS(true);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setDTR(true);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setRTS(false);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
         Serial.setDTR(false);
         try {
-            Thread.sleep(50);
+            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
         }
