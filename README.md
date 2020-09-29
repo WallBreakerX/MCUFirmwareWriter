@@ -1,4 +1,4 @@
-# 单片机固件烧录器 MCU Firmware Writer
+# 单片机固件烧录器-安卓 MCU Firmware Writer for Android
 
 ## 注意事项
   
