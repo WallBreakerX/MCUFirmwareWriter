@@ -40,14 +40,7 @@
   
   
 
-  
-  
-  
-### 联系方式
-
-    WeChat: xmh849873336
-    
-    Email: a84987336@outlook.com
+ 
     
     
     
