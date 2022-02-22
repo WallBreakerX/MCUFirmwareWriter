@@ -3,9 +3,7 @@
 ## 注意事项
   
   - 当前暂只支持 **NXP的LPC8xx系芯片**，故以下引脚连接方式暂只适用于此系芯片。
-  
-    有空了会试着添加STM32及其他Cortex-M系芯片的支持。
-  
+
   - 选择Flash时需与实际Flash大小对应(默认为16KB)，否则有可能造成Flash的擦除和写入失败。
   
   - 连接RTS与DTS引脚是为了让APP控制引脚电平使芯片进入ISP模式，也可自己手动进入ISP。
@@ -39,11 +37,6 @@
   - 开始烧录！
   
   
-
- 
-    
-    
-    
 ### 感谢以下开源库
 
 - https://github.com/felHR85/UsbSerial
@@ -51,3 +44,7 @@
 - https://github.com/leonHua/LFilePicker
 
 - https://blog.csdn.net/zf_c_cqupt/article/details/52676716 CSDN
+
+### -
+
+离开程序员行业了，有缘再见。
